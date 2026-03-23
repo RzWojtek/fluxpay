@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FLUXPAY — Arc Stablecoin Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #030609;
+    --bg2:       #060d14;
+    --bg3:       #0a1520;
+    --panel:     #0d1e2e;
+    --border:    #0e3050;
+    --cyan:      #00f5ff;
+    --cyan-dim:  #00a8b5;
+    --green:     #00ff88;
+    --green-dim: #00b560;
+    --orange:    #ff6b00;
+    --red:       #ff2244;
+    --text:      #c8dde8;
+    --text-dim:  #4a6a80;
+    --text-faint:#1e3040;
+    --glow-c:    0 0 8px #00f5ff66, 0 0 24px #00f5ff22;
+    --glow-g:    0 0 8px #00ff8866, 0 0 24px #00ff8822;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* ── GRID BACKGROUND ─────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(0,245,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* ── SCANLINES ───────────────────────────────────── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,.08) 2px, rgba(0,0,0,.08) 4px
+    );
+    pointer-events: none;
+  }
+
+  /* ── LAYOUT ──────────────────────────────────────── */
+  #app { position: relative; z-index: 1; min-height: 100vh; }
+
+  /* ── TOPBAR ──────────────────────────────────────── */
+  #topbar {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    height: 56px;
+    background: rgba(3,6,9,.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px; font-weight: 900;
+    color: var(--cyan);
+    text-shadow: var(--glow-c);
+    letter-spacing: 4px;
+  }
+  .logo span { color: var(--green); text-shadow: var(--glow-g); }
+
+  .nav { display: flex; gap: 6px; }
+  .nav a {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; letter-spacing: 2px;
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    transition: all .2s;
+  }
+  .nav a:hover, .nav a.active {
+    color: var(--cyan);
+    border-color: var(--cyan);
+    text-shadow: var(--glow-c);
+    background: rgba(0,245,255,.05);
+  }
+
+  #connect-btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px; letter-spacing: 2px;
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    padding: 8px 18px;
+    cursor: pointer;
+    transition: all .25s;
+    text-shadow: var(--glow-c);
+    box-shadow: inset 0 0 12px rgba(0,245,255,.05);
+  }
+  #connect-btn:hover {
+    background: rgba(0,245,255,.12);
+    box-shadow: var(--glow-c), inset 0 0 20px rgba(0,245,255,.1);
+  }
+  #connect-btn.connected {
+    border-color: var(--green);
+    color: var(--green);
+    text-shadow: var(--glow-g);
+    box-shadow: inset 0 0 12px rgba(0,255,136,.05);
+  }
+
+  /* ── HERO ────────────────────────────────────────── */
+  #hero {
+    text-align: center;
+    padding: 70px 20px 50px;
+    position: relative;
+  }
+  #hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 300px;
+    background: radial-gradient(ellipse at top, rgba(0,245,255,.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-tag {
+    display: inline-block;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; letter-spacing: 3px;
+    color: var(--green);
+    border: 1px solid var(--green-dim);
+    padding: 4px 12px; margin-bottom: 20px;
+    animation: pulse-border 3s infinite;
+  }
+  @keyframes pulse-border {
+    0%,100% { box-shadow: 0 0 4px rgba(0,255,136,.3); }
+    50% { box-shadow: 0 0 12px rgba(0,255,136,.6); }
+  }
+  .hero-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(32px, 6vw, 64px);
+    font-weight: 900;
+    line-height: 1;
+    color: var(--cyan);
+    text-shadow: var(--glow-c);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  .hero-sub {
+    font-size: 16px; color: var(--text-dim);
+    letter-spacing: 2px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ── MAIN GRID ───────────────────────────────────── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    padding: 0 24px 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .span2 { grid-column: span 2; }
+  .span3 { grid-column: span 3; }
+
+  /* ── PANEL ───────────────────────────────────────── */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp .5s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .panel::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: .5;
+  }
+  .panel-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; letter-spacing: 3px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-title::before {
+    content: '//';
+    color: var(--cyan);
+    opacity: .6;
+  }
+
+  /* ── STAT CARDS ──────────────────────────────────── */
+  .stats-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin-bottom: 0;
+  }
+  .stat {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    position: relative;
+  }
+  .stat-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; letter-spacing: 2px;
+    color: var(--text-dim); margin-bottom: 6px;
+  }
+  .stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px; font-weight: 700;
+    color: var(--cyan);
+    text-shadow: var(--glow-c);
+  }
+  .stat-value.green { color: var(--green); text-shadow: var(--glow-g); }
+  .stat-change {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    margin-top: 4px;
+  }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+
+  /* ── NETWORK STATUS ──────────────────────────────── */
+  .net-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 2s infinite;
+    flex-shrink: 0;
+  }
+  .dot.orange { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+  @keyframes blink {
+    0%,100% { opacity: 1; } 50% { opacity: .3; }
+  }
+  .net-label { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-dim); flex: 1; letter-spacing: 1px; }
+  .net-val { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text); }
+
+  /* ── SEND FORM ───────────────────────────────────── */
+  .steps {
+    display: flex; gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; letter-spacing: 2px;
+    padding: 8px 16px;
+    color: var(--text-faint);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all .2s;
+  }
+  .step.active {
+    color: var(--cyan);
+    border-bottom-color: var(--cyan);
+    text-shadow: var(--glow-c);
+  }
+  .step.done { color: var(--green-dim); border-bottom-color: var(--green-dim); }
+
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; letter-spacing: 2px;
+    color: var(--text-dim); margin-bottom: 6px;
+  }
+  .field input, .field textarea, .field select {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .field input:focus, .field textarea:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 2px rgba(0,245,255,.07);
+  }
+  .field input::placeholder { color: var(--text-faint); }
+
+  .amount-row {
+    display: flex; gap: 8px;
+  }
+  .amount-row input { flex: 1; font-size: 20px; font-family: 'Orbitron', monospace; font-weight: 700; }
+  .token-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    font-family: 'Orbitron', monospace;
+    font-size: 11px; letter-spacing: 2px;
+    padding: 10px 14px;
+    display: flex; align-items: center;
+  }
+
+  .btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px; letter-spacing: 3px;
+    width: 100%; padding: 14px;
+    border: 1px solid var(--cyan);
+    background: rgba(0,245,255,.07);
+    color: var(--cyan);
+    cursor: pointer;
+    transition: all .25s;
+    text-shadow: var(--glow-c);
+    margin-top: 4px;
+  }
+  .btn:hover {
+    background: rgba(0,245,255,.15);
+    box-shadow: var(--glow-c);
+  }
+  .btn.green-btn {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(0,255,136,.07);
+    text-shadow: var(--glow-g);
+  }
+  .btn.green-btn:hover {
+    background: rgba(0,255,136,.15);
+    box-shadow: var(--glow-g);
+  }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  .quick-amounts {
+    display: flex; gap: 6px; margin-bottom: 12px;
+  }
+  .qa {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .qa:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  /* ── TX FEED ─────────────────────────────────────── */
+  #tx-feed { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+  #tx-feed::-webkit-scrollbar { width: 4px; }
+  #tx-feed::-webkit-scrollbar-track { background: var(--bg2); }
+  #tx-feed::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .tx-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--cyan);
+    transition: border-color .2s;
+    animation: slideIn .3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .tx-item:hover { border-left-color: var(--green); }
+  .tx-item.out { border-left-color: var(--orange); }
+  .tx-item.out:hover { border-left-color: var(--red); }
+  .tx-icon { font-size: 16px; flex-shrink: 0; width: 28px; text-align: center; }
+  .tx-info { flex: 1; }
+  .tx-addr { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text); }
+  .tx-time { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+  .tx-amount { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; }
+  .tx-amount.in { color: var(--green); }
+  .tx-amount.out { color: var(--orange); }
+  .tx-status { font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: 1px; margin-top: 3px; }
+  .tx-status.confirmed { color: var(--green-dim); }
+  .tx-status.pending { color: var(--orange); }
+
+  /* ── LEADERBOARD ─────────────────────────────────── */
+  .lb-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    margin-bottom: 6px;
+    transition: all .2s;
+    cursor: default;
+  }
+  .lb-row:hover { background: var(--bg2); border-color: var(--cyan-dim); }
+  .lb-row.gold { border-left: 3px solid #ffd700; }
+  .lb-row.silver { border-left: 3px solid #c0c0c0; }
+  .lb-row.bronze { border-left: 3px solid #cd7f32; }
+  .lb-rank {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px; font-weight: 700;
+    color: var(--text-dim); width: 28px; text-align: center;
+  }
+  .lb-rank.top { color: var(--cyan); text-shadow: var(--glow-c); }
+  .lb-avatar {
+    width: 32px; height: 32px; border-radius: 0;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-size: 11px; color: var(--cyan-dim);
+  }
+  .lb-addr { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text); flex: 1; }
+  .lb-txcount { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-dim); }
+  .lb-vol {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px; font-weight: 700;
+    color: var(--green);
+    text-shadow: var(--glow-g);
+  }
+  .lb-badge {
+    font-size: 9px; letter-spacing: 1px;
+    padding: 2px 6px;
+    font-family: 'Share Tech Mono', monospace;
+    background: rgba(0,245,255,.08);
+    border: 1px solid var(--border);
+    color: var(--cyan-dim);
+  }
+
+  /* ── TOAST ───────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 999;
+    font-family: 'Share Tech Mono', monospace; font-size: 12px;
+    padding: 12px 20px;
+    background: var(--panel);
+    border: 1px solid var(--green);
+    color: var(--green);
+    box-shadow: var(--glow-g);
+    opacity: 0; transform: translateY(10px);
+    transition: all .3s;
+    pointer-events: none;
+    letter-spacing: 1px;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ── TICKER ──────────────────────────────────────── */
+  .ticker-wrap {
+    overflow: hidden;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 0;
+    margin-bottom: 0;
+    background: var(--bg2);
+  }
+  .ticker {
+    display: flex; gap: 48px;
+    animation: ticker 22s linear infinite;
+    white-space: nowrap;
+    width: max-content;
+  }
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  .tick-item {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; letter-spacing: 1px;
+    color: var(--text-dim);
+  }
+  .tick-item span { color: var(--cyan); margin-right: 6px; }
+  .tick-item .up { color: var(--green); }
+  .tick-item .down { color: var(--red); }
+
+  /* ── REVIEW PANEL ────────────────────────────────── */
+  .review-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .review-row {
+    display: flex; justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--text-faint);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+  }
+  .review-row:last-child { border-bottom: none; }
+  .review-row .rlabel { color: var(--text-dim); }
+  .review-row .rval { color: var(--text); }
+  .review-row.total .rval { color: var(--green); font-size: 15px; text-shadow: var(--glow-g); font-family: 'Orbitron', monospace; font-weight: 700; }
+
+  /* ── STEP CONTAINERS ─────────────────────────────── */
+  .step-content { display: none; }
+  .step-content.active { display: block; }
+
+  /* ── BALANCE BAR ─────────────────────────────────── */
+  .bal-bar-wrap { background: var(--bg2); border: 1px solid var(--border); padding: 14px 16px; margin-bottom: 8px; }
+  .bal-bar-label { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .bal-bar-track { height: 4px; background: var(--border); position: relative; }
+  .bal-bar-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); transition: width .8s ease; box-shadow: 0 0 8px var(--cyan); }
+  .bal-value { font-family: 'Orbitron', monospace; font-size: 24px; font-weight: 900; color: var(--cyan); text-shadow: var(--glow-c); margin-top: 10px; }
+  .bal-sub { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+  /* ── RESPONSIVE ──────────────────────────────────── */
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .span2, .span3 { grid-column: span 1; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* scroll anchor offset */
+  section { scroll-margin-top: 64px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- TOPBAR -->
+  <header id="topbar">
+    <div class="logo">FLUX<span>PAY</span></div>
+    <nav class="nav">
+      <a href="#dashboard" class="active" onclick="setActive(this)">DASHBOARD</a>
+      <a href="#send" onclick="setActive(this)">SEND</a>
+      <a href="#history" onclick="setActive(this)">HISTORY</a>
+      <a href="#leaderboard" onclick="setActive(this)">LEADERBOARD</a>
+    </nav>
+    <button id="connect-btn" onclick="toggleWallet()">CONNECT WALLET</button>
+  </header>
+
+  <!-- TICKER -->
+  <div class="ticker-wrap">
+    <div class="ticker" id="ticker"></div>
+  </div>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="hero-tag">ARC TESTNET // STABLECOIN TERMINAL</div>
+    <h1 class="hero-title">FLUXPAY</h1>
+    <p class="hero-sub">// move usdc with precision. on-chain. real-time.</p>
+  </section>
+
+  <!-- MAIN GRID -->
+  <main class="main-grid">
+
+    <!-- ── SECTION: DASHBOARD ── -->
+    <section id="dashboard" class="span3">
+      <div class="panel-title">// DASHBOARD — NETWORK OVERVIEW</div>
+    </section>
+
+    <!-- Balance card -->
+    <div class="panel" style="animation-delay:.05s">
+      <div class="panel-title">WALLET BALANCE</div>
+      <div class="bal-bar-wrap">
+        <div class="bal-bar-label"><span>USDC</span><span id="bal-pct">0%</span></div>
+        <div class="bal-bar-track"><div class="bal-bar-fill" id="bal-fill" style="width:0%"></div></div>
+        <div class="bal-value" id="bal-display">---.--</div>
+        <div class="bal-sub" id="bal-addr">CONNECT WALLET TO VIEW</div>
+      </div>
+      <div class="bal-bar-wrap">
+        <div class="bal-bar-label"><span>EURC</span><span id="eurc-pct">0%</span></div>
+        <div class="bal-bar-track"><div class="bal-bar-fill" id="eurc-fill" style="width:0%; background: linear-gradient(90deg, #ff6b00, #ffaa00);"></div></div>
+        <div class="bal-value" style="color:var(--orange); text-shadow:0 0 8px #ff6b0066" id="eurc-display">---.--</div>
+        <div class="bal-sub">EURC BALANCE ARC TESTNET</div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="panel" style="animation-delay:.1s">
+      <div class="panel-title">STATS — 24H</div>
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-label">SENT TODAY</div>
+          <div class="stat-value" id="stat-sent">0.00</div>
+          <div class="stat-change down">USDC</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">RECEIVED</div>
+          <div class="stat-value green" id="stat-recv">0.00</div>
+          <div class="stat-change up">USDC</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">TX COUNT</div>
+          <div class="stat-value" id="stat-txcount">0</div>
+          <div class="stat-change" style="color:var(--text-dim)">TRANSACTIONS</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">GAS USED</div>
+          <div class="stat-value" id="stat-gas">~$0.00</div>
+          <div class="stat-change" style="color:var(--text-dim)">TOTAL FEES</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Network -->
+    <div class="panel" style="animation-delay:.15s">
+      <div class="panel-title">ARC NETWORK STATUS</div>
+      <div class="net-row"><div class="dot"></div><div class="net-label">NETWORK</div><div class="net-val">ARC TESTNET</div></div>
+      <div class="net-row"><div class="dot"></div><div class="net-label">CHAIN ID</div><div class="net-val">5042002</div></div>
+      <div class="net-row"><div class="dot orange"></div><div class="net-label">GAS TOKEN</div><div class="net-val">USDC (NATIVE)</div></div>
+      <div class="net-row"><div class="dot"></div><div class="net-label">BASE FEE</div><div class="net-val">160 GWEI</div></div>
+      <div class="net-row"><div class="dot"></div><div class="net-label">TX COST</div><div class="net-val">~$0.01</div></div>
+      <div class="net-row"><div class="dot"></div><div class="net-label">BLOCK TIME</div><div class="net-val" id="block-time">~2s</div></div>
+    </div>
+
+    <!-- ── SECTION: SEND ── -->
+    <section id="send" class="span3" style="margin-top:16px">
+      <div class="panel-title">// SEND — STABLECOIN TRANSFER</div>
+    </section>
+
+    <!-- Send form -->
+    <div class="panel span2" style="animation-delay:.2s">
+      <div class="panel-title">SEND USDC</div>
+      <div class="steps">
+        <div class="step active" id="s1" onclick="goStep(1)">01 RECIPIENT</div>
+        <div class="step" id="s2" onclick="goStep(2)">02 AMOUNT</div>
+        <div class="step" id="s3" onclick="goStep(3)">03 REVIEW</div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="step-content active" id="step1">
+        <div class="field">
+          <label>RECIPIENT ADDRESS</label>
+          <input type="text" id="send-to" placeholder="0x..." />
+        </div>
+        <div class="field">
+          <label>NOTE (OPTIONAL)</label>
+          <input type="text" id="send-note" placeholder="Payment for..." />
+        </div>
+        <div style="margin-bottom:12px">
+          <div class="panel-title" style="margin-bottom:8px">QUICK CONTACTS</div>
+          <div id="quick-contacts" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+        <button class="btn" onclick="goStep(2)">NEXT: SET AMOUNT →</button>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step-content" id="step2">
+        <div class="field">
+          <label>AMOUNT</label>
+          <div class="amount-row">
+            <input type="number" id="send-amount" placeholder="0.00" min="0" step="0.01" />
+            <div class="token-badge">USDC</div>
+          </div>
+        </div>
+        <div class="quick-amounts">
+          <div class="qa" onclick="setAmount(10)">$10</div>
+          <div class="qa" onclick="setAmount(25)">$25</div>
+          <div class="qa" onclick="setAmount(50)">$50</div>
+          <div class="qa" onclick="setAmount(100)">$100</div>
+          <div class="qa" onclick="setAmount(250)">$250</div>
+        </div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);margin-bottom:14px">
+          AVAILABLE: <span id="avail-bal" style="color:var(--cyan)">-- USDC</span>
+        </div>
+        <button class="btn" onclick="goStep(3)">NEXT: REVIEW →</button>
+        <button class="btn" style="margin-top:6px;border-color:var(--text-faint);color:var(--text-dim)" onclick="goStep(1)">← BACK</button>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step-content" id="step3">
+        <div class="review-box">
+          <div class="review-row"><span class="rlabel">TO</span><span class="rval" id="rv-to">—</span></div>
+          <div class="review-row"><span class="rlabel">NOTE</span><span class="rval" id="rv-note">—</span></div>
+          <div class="review-row"><span class="rlabel">NETWORK</span><span class="rval">ARC TESTNET</span></div>
+          <div class="review-row"><span class="rlabel">GAS FEE</span><span class="rval">~$0.01 USDC</span></div>
+          <div class="review-row total"><span class="rlabel">TOTAL</span><span class="rval" id="rv-total">0.00 USDC</span></div>
+        </div>
+        <button class="btn green-btn" onclick="submitTx()">⚡ BROADCAST TRANSACTION</button>
+        <button class="btn" style="margin-top:6px;border-color:var(--text-faint);color:var(--text-dim)" onclick="goStep(2)">← BACK</button>
+      </div>
+    </div>
+
+    <!-- Contacts panel -->
+    <div class="panel" style="animation-delay:.25s">
+      <div class="panel-title">CONTACTS</div>
+      <div id="contacts-list" style="max-height:220px;overflow-y:auto;margin-bottom:12px"></div>
+      <div class="panel-title" style="margin-top:4px">ADD NEW</div>
+      <div class="field"><label>NAME</label><input type="text" id="new-contact-name" placeholder="Alice..." /></div>
+      <div class="field"><label>ADDRESS</label><input type="text" id="new-contact-addr" placeholder="0x..." /></div>
+      <button class="btn" onclick="addContact()">+ SAVE CONTACT</button>
+    </div>
+
+    <!-- ── SECTION: HISTORY ── -->
+    <section id="history" class="span3" style="margin-top:16px">
+      <div class="panel-title">// TRANSACTION HISTORY</div>
+    </section>
+
+    <div class="panel span2" style="animation-delay:.3s">
+      <div class="panel-title">RECENT TRANSACTIONS</div>
+      <div id="tx-feed"></div>
+    </div>
+
+    <!-- Mini chart / activity summary -->
+    <div class="panel" style="animation-delay:.35s">
+      <div class="panel-title">ACTIVITY SUMMARY</div>
+      <canvas id="activity-chart" height="220" style="width:100%;margin-top:8px"></canvas>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);margin-top:12px;text-align:center;letter-spacing:2px">DAILY USDC VOLUME</div>
+    </div>
+
+    <!-- ── SECTION: LEADERBOARD ── -->
+    <section id="leaderboard" class="span3" style="margin-top:16px">
+      <div class="panel-title">// LEADERBOARD — TOP SENDERS ON ARC TESTNET</div>
+    </section>
+
+    <div class="panel span3" style="animation-delay:.4s">
+      <div class="panel-title">VOLUME RANKINGS</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+        <div class="stat">
+          <div class="stat-label">TOTAL PLAYERS</div>
+          <div class="stat-value" id="lb-total">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">YOUR RANK</div>
+          <div class="stat-value green" id="lb-my-rank">#—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">TOP VOLUME</div>
+          <div class="stat-value" id="lb-top-vol">—</div>
+        </div>
+      </div>
+      <div id="leaderboard-list"></div>
+    </div>
+
+  </main>
+
+  <footer style="text-align:center;padding:24px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-faint);letter-spacing:2px;border-top:1px solid var(--text-faint)">
+    FLUXPAY // ARC TESTNET // BUILD YOUR OWN ON-CHAIN TOOLS
+  </footer>
+
+</div><!-- #app -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────
+let walletConnected = false;
+let walletAddress   = '';
+let walletBalance   = 0;
+let eurcBalance     = 0;
+let contacts        = [];
+let transactions    = [];
+
+// ─── HELPERS ────────────────────────────────
+function shortAddr(a) { return a ? a.slice(0,6)+'...'+a.slice(-4) : '—'; }
+function randAddr() { return '0x'+[...Array(40)].map(()=>'0123456789abcdef'[Math.floor(Math.random()*16)]).join(''); }
+function randInitials() { const c='ABCDEFGHKLMNPRSTVWXZ'; return c[Math.floor(Math.random()*c.length)]+c[Math.floor(Math.random()*c.length)]; }
+function fmtUSD(n) { return parseFloat(n).toFixed(2); }
+function toast(msg, color='var(--green)') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.borderColor = color; t.style.color = color;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+function setActive(el) {
+  document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ─── TICKER ─────────────────────────────────
+function buildTicker() {
+  const items = [
+    ['USDC/USD','1.0000','+0.00%',true],
+    ['EURC/USD','1.0821','+0.12%',true],
+    ['ARC BLOCK','#2847312','',''],
+    ['GAS','$0.01','',''],
+    ['CHAIN ID','5042002','',''],
+    ['AVG TX','0.8s','',''],
+    ['USDC/USD','1.0000','+0.00%',true],
+    ['EURC/USD','1.0821','+0.12%',true],
+    ['ARC BLOCK','#2847312','',''],
+    ['GAS','$0.01','',''],
+  ];
+  const t = document.getElementById('ticker');
+  const html = items.map(([l,v,c,up])=>
+    `<span class="tick-item"><span>${l}</span>${v}${c?`<span class="${up?'up':''}">&nbsp;${c}</span>`:''}</span>`
+  ).join('');
+  t.innerHTML = html+html; // duplicate for seamless loop
+}
+buildTicker();
+
+// ─── WALLET ─────────────────────────────────
+function toggleWallet() {
+  if(walletConnected) {
+    walletConnected = false; walletAddress = '';
+    document.getElementById('connect-btn').textContent = 'CONNECT WALLET';
+    document.getElementById('connect-btn').classList.remove('connected');
+    document.getElementById('bal-display').textContent = '---.--';
+    document.getElementById('bal-addr').textContent = 'CONNECT WALLET TO VIEW';
+    document.getElementById('bal-fill').style.width = '0%';
+    document.getElementById('eurc-fill').style.width = '0%';
+    document.getElementById('eurc-display').textContent = '---.--';
+    document.getElementById('avail-bal').textContent = '-- USDC';
+    toast('WALLET DISCONNECTED', 'var(--orange)');
+  } else {
+    walletAddress = randAddr();
+    walletBalance = (Math.random()*900+100).toFixed(2)*1;
+    eurcBalance   = (Math.random()*400+50).toFixed(2)*1;
+    walletConnected = true;
+    const btn = document.getElementById('connect-btn');
+    btn.textContent = shortAddr(walletAddress);
+    btn.classList.add('connected');
+    document.getElementById('bal-display').textContent = fmtUSD(walletBalance);
+    document.getElementById('bal-addr').textContent = shortAddr(walletAddress)+' // ARC TESTNET';
+    const pct = Math.min(100,(walletBalance/1000*100)).toFixed(0);
+    document.getElementById('bal-fill').style.width = pct+'%';
+    document.getElementById('bal-pct').textContent = pct+'%';
+    const epct = Math.min(100,(eurcBalance/500*100)).toFixed(0);
+    document.getElementById('eurc-fill').style.width = epct+'%';
+    document.getElementById('eurc-pct').textContent = epct+'%';
+    document.getElementById('eurc-display').textContent = fmtUSD(eurcBalance);
+    document.getElementById('avail-bal').textContent = fmtUSD(walletBalance)+' USDC';
+    toast('⚡ WALLET CONNECTED: '+shortAddr(walletAddress));
+    seedTxHistory();
+    updateStats();
+  }
+}
+
+// ─── SEND STEPS ─────────────────────────────
+function goStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('step'+i).classList.toggle('active', i===n);
+    const s = document.getElementById('s'+i);
+    s.classList.remove('active','done');
+    if(i===n) s.classList.add('active');
+    else if(i<n) s.classList.add('done');
+  });
+  if(n===3) {
+    const to = document.getElementById('send-to').value;
+    const amt = document.getElementById('send-amount').value;
+    const note = document.getElementById('send-note').value;
+    document.getElementById('rv-to').textContent = to ? shortAddr(to) : '—';
+    document.getElementById('rv-note').textContent = note || '—';
+    document.getElementById('rv-total').textContent = (amt?fmtUSD(amt):'0.00')+' USDC';
+  }
+}
+
+function setAmount(v) { document.getElementById('send-amount').value = v; }
+
+function submitTx() {
+  if(!walletConnected){ toast('CONNECT WALLET FIRST','var(--red)'); return; }
+  const to  = document.getElementById('send-to').value;
+  const amt = parseFloat(document.getElementById('send-amount').value);
+  const note = document.getElementById('send-note').value;
+  if(!to){ toast('ENTER RECIPIENT','var(--red)'); return; }
+  if(!amt||amt<=0){ toast('ENTER AMOUNT','var(--red)'); return; }
+  if(amt>walletBalance){ toast('INSUFFICIENT BALANCE','var(--red)'); return; }
+  walletBalance -= amt;
+  document.getElementById('bal-display').textContent = fmtUSD(walletBalance);
+  document.getElementById('avail-bal').textContent = fmtUSD(walletBalance)+' USDC';
+  const tx = { type:'out', to, from:walletAddress, amount:amt, note, time:new Date(), status:'confirmed', hash:'0x'+Math.random().toString(16).slice(2,10) };
+  transactions.unshift(tx);
+  renderTxFeed();
+  updateStats();
+  renderLeaderboard();
+  saveToStorage();
+  // reset form
+  document.getElementById('send-to').value='';
+  document.getElementById('send-amount').value='';
+  document.getElementById('send-note').value='';
+  goStep(1);
+  toast('⚡ TX BROADCAST: '+fmtUSD(amt)+' USDC → '+shortAddr(to));
+}
+
+// ─── TX FEED ─────────────────────────────────
+function seedTxHistory() {
+  transactions = [];
+  const n = 8+Math.floor(Math.random()*5);
+  for(let i=0;i<n;i++) {
+    const type = Math.random()>.4?'out':'in';
+    const amt  = (Math.random()*200+5).toFixed(2)*1;
+    const dt   = new Date(Date.now() - Math.random()*86400000*3);
+    transactions.push({ type, to:randAddr(), from:randAddr(), amount:amt, note:'', time:dt, status:'confirmed', hash:'0x'+Math.random().toString(16).slice(2,10) });
+  }
+  transactions.sort((a,b)=>b.time-a.time);
+  renderTxFeed();
+}
+
+function renderTxFeed() {
+  const feed = document.getElementById('tx-feed');
+  if(!transactions.length){ feed.innerHTML = '<div style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:var(--text-faint);text-align:center;padding:20px">NO TRANSACTIONS YET</div>'; return; }
+  feed.innerHTML = transactions.slice(0,15).map(tx => `
+    <div class="tx-item ${tx.type}">
+      <div class="tx-icon">${tx.type==='out'?'↑':'↓'}</div>
+      <div class="tx-info">
+        <div class="tx-addr">${tx.type==='out'?'→ '+shortAddr(tx.to):'← '+shortAddr(tx.from)}</div>
+        <div class="tx-time">${tx.time.toLocaleString('en-US',{hour12:false,month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})} // ${tx.hash.slice(0,12)}...</div>
+      </div>
+      <div>
+        <div class="tx-amount ${tx.type}">${tx.type==='out'?'-':'+'}${fmtUSD(tx.amount)}</div>
+        <div class="tx-status ${tx.status}">${tx.status.toUpperCase()}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── STATS ────────────────────────────────────
+function updateStats() {
+  const now = Date.now();
+  const today = transactions.filter(t => now-t.time.getTime()<86400000);
+  const sent  = today.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
+  const recv  = today.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('stat-sent').textContent = fmtUSD(sent);
+  document.getElementById('stat-recv').textContent = fmtUSD(recv);
+  document.getElementById('stat-txcount').textContent = transactions.length;
+  document.getElementById('stat-gas').textContent = '~$'+(transactions.length*0.01).toFixed(2);
+  drawChart();
+}
+
+// ─── CHART ────────────────────────────────────
+function drawChart() {
+  const canvas = document.getElementById('activity-chart');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * devicePixelRatio;
+  canvas.height = 220 * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  const W = canvas.offsetWidth, H = 220;
+  ctx.clearRect(0,0,W,H);
+  // build 7-day data
+  const days = 7;
+  const data = [];
+  for(let i=days-1;i>=0;i--) {
+    const start = Date.now() - (i+1)*86400000;
+    const end   = Date.now() - i*86400000;
+    const vol = transactions.filter(t=>t.time.getTime()>=start&&t.time.getTime()<end&&t.type==='out').reduce((s,t)=>s+t.amount,0);
+    data.push(vol);
+  }
+  const max = Math.max(...data,1);
+  const pad = {t:10,r:10,b:30,l:40};
+  const gW = W-pad.l-pad.r, gH = H-pad.t-pad.b;
+  const barW = (gW/days)*0.6, gap = (gW/days)*0.4;
+  // grid lines
+  ctx.strokeStyle = 'rgba(14,48,80,.6)'; ctx.lineWidth = 1;
+  [0,.25,.5,.75,1].forEach(p => {
+    const y = pad.t + gH*(1-p);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+gW,y); ctx.stroke();
+  });
+  // bars
+  const labels = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+  data.forEach((v,i) => {
+    const x = pad.l + i*(gW/days) + gap/2;
+    const bH = (v/max)*gH;
+    const y = pad.t+gH-bH;
+    const grad = ctx.createLinearGradient(0,y,0,y+bH);
+    grad.addColorStop(0,'rgba(0,245,255,.8)');
+    grad.addColorStop(1,'rgba(0,245,255,.15)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x,y,barW,bH);
+    // glow
+    ctx.shadowColor = '#00f5ff'; ctx.shadowBlur = 8;
+    ctx.fillRect(x,y,barW,2);
+    ctx.shadowBlur = 0;
+    // label
+    ctx.fillStyle = 'rgba(74,106,128,.8)';
+    ctx.font = `${9*devicePixelRatio/devicePixelRatio}px 'Share Tech Mono'`;
+    ctx.textAlign='center';
+    ctx.fillText(labels[i], x+barW/2, H-10);
+    // value
+    if(v>0) {
+      ctx.fillStyle='rgba(0,245,255,.6)';
+      ctx.fillText('$'+v.toFixed(0), x+barW/2, y-4);
+    }
+  });
+  // y-axis
+  ctx.fillStyle='rgba(74,106,128,.6)'; ctx.textAlign='right';
+  [0,.5,1].forEach(p=>{
+    const y=pad.t+gH*(1-p)+4;
+    ctx.fillText('$'+(max*p).toFixed(0),pad.l-4,y);
+  });
+}
+
+// ─── LEADERBOARD ─────────────────────────────
+let lbData = [];
+function seedLeaderboard() {
+  lbData = [];
+  const names = ['PHANTOM_X','DEGEN.42','CRYPTOWOLF','ARC_RUNNER','STAB3L_BOY','HEXFLUX','NULLPOINT','VAULTBREAKER','CHAINZERO','MEVBOT9'];
+  for(let i=0;i<10;i++) {
+    lbData.push({ addr:randAddr(), name:names[i]||'ANON_'+i, vol:(Math.random()*8000+200).toFixed(2)*1, txs:Math.floor(Math.random()*80+5) });
+  }
+  lbData.sort((a,b)=>b.vol-a.vol);
+}
+function renderLeaderboard() {
+  // inject my wallet if connected
+  let lb = [...lbData];
+  if(walletConnected && transactions.length) {
+    const myVol = transactions.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
+    const idx   = lb.findIndex(x=>x.addr===walletAddress);
+    if(idx<0) lb.push({addr:walletAddress,name:'YOU',vol:myVol,txs:transactions.filter(t=>t.type==='out').length});
+    else lb[idx].vol += myVol;
+    lb.sort((a,b)=>b.vol-a.vol);
+  }
+  document.getElementById('lb-total').textContent = lb.length;
+  const myRank = lb.findIndex(x=>x.addr===walletAddress)+1;
+  document.getElementById('lb-my-rank').textContent = myRank>0?'#'+myRank:'#—';
+  document.getElementById('lb-top-vol').textContent = lb.length?'$'+fmtUSD(lb[0].vol):'—';
+  const medals = ['gold','silver','bronze'];
+  const icons  = ['🥇','🥈','🥉'];
+  const list = document.getElementById('leaderboard-list');
+  list.innerHTML = lb.map((u,i) => {
+    const isMe = u.addr===walletAddress;
+    const initials = u.name.slice(0,2).toUpperCase();
+    return `<div class="lb-row ${medals[i]||''}" style="${isMe?'border:1px solid var(--cyan);background:rgba(0,245,255,.04)':''}">
+      <div class="lb-rank ${i<3?'top':''}">${icons[i]||('#'+(i+1))}</div>
+      <div class="lb-avatar">${initials}</div>
+      <div class="lb-addr">${isMe?'<span style="color:var(--cyan)">YOU</span> '+shortAddr(u.addr):u.name+' '+shortAddr(u.addr)}</div>
+      <div class="lb-txcount">${u.txs} TXS</div>
+      <div class="lb-vol">$${fmtUSD(u.vol)}</div>
+      ${i===0?'<div class="lb-badge">⚡ TOP SENDER</div>':i<3?'<div class="lb-badge">ELITE</div>':''}
+    </div>`;
+  }).join('');
+}
+
+// ─── CONTACTS ─────────────────────────────────
+function renderContacts() {
+  const list = document.getElementById('contacts-list');
+  if(!contacts.length){ list.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:var(--text-faint);padding:10px 0">NO SAVED CONTACTS</div>'; }
+  else list.innerHTML = contacts.map((c,i)=>`
+    <div class="net-row" style="cursor:pointer;margin-bottom:4px" onclick="useContact(${i})">
+      <div class="dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></div>
+      <div class="net-label">${c.name}</div>
+      <div class="net-val" style="font-size:10px">${shortAddr(c.addr)}</div>
+    </div>`).join('');
+  // quick contacts
+  const qc = document.getElementById('quick-contacts');
+  qc.innerHTML = contacts.map((c,i)=>`<div class="qa" onclick="useContact(${i})">${c.name}</div>`).join('');
+}
+function addContact() {
+  const name = document.getElementById('new-contact-name').value.trim();
+  const addr = document.getElementById('new-contact-addr').value.trim();
+  if(!name||!addr){ toast('FILL BOTH FIELDS','var(--red)'); return; }
+  contacts.push({name,addr});
+  document.getElementById('new-contact-name').value='';
+  document.getElementById('new-contact-addr').value='';
+  renderContacts(); saveToStorage();
+  toast('CONTACT SAVED: '+name);
+}
+function useContact(i) {
+  document.getElementById('send-to').value = contacts[i].addr;
+  toast('CONTACT LOADED: '+contacts[i].name);
+  goStep(1);
+  document.getElementById('send').scrollIntoView({behavior:'smooth'});
+}
+
+// ─── LOCAL STORAGE ───────────────────────────
+function saveToStorage() {
+  localStorage.setItem('fp_contacts', JSON.stringify(contacts));
+  localStorage.setItem('fp_txs', JSON.stringify(transactions.map(t=>({...t,time:t.time.toISOString()}))));
+}
+function loadFromStorage() {
+  try {
+    const c = localStorage.getItem('fp_contacts');
+    if(c) contacts = JSON.parse(c);
+    const t = localStorage.getItem('fp_txs');
+    if(t) transactions = JSON.parse(t).map(tx=>({...tx,time:new Date(tx.time)}));
+  } catch(e){}
+}
+
+// ─── INIT ─────────────────────────────────────
+loadFromStorage();
+renderContacts();
+seedLeaderboard();
+renderLeaderboard();
+renderTxFeed();
+drawChart();
+
+// live block time
+setInterval(()=>{
+  document.getElementById('block-time').textContent = '~'+(1.5+Math.random()).toFixed(1)+'s';
+},3000);
+window.addEventListener('resize', drawChart);
+</script>
+</body>
+</html>
