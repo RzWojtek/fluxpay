@@ -804,39 +804,117 @@ function buildTicker() {
 buildTicker();
 
 // ─── WALLET ─────────────────────────────────
-function toggleWallet() {
-  if(walletConnected) {
-    walletConnected = false; walletAddress = '';
-    document.getElementById('connect-btn').textContent = 'CONNECT WALLET';
-    document.getElementById('connect-btn').classList.remove('connected');
-    document.getElementById('bal-display').textContent = '---.--';
-    document.getElementById('bal-addr').textContent = 'CONNECT WALLET TO VIEW';
-    document.getElementById('bal-fill').style.width = '0%';
-    document.getElementById('eurc-fill').style.width = '0%';
-    document.getElementById('eurc-display').textContent = '---.--';
-    document.getElementById('avail-bal').textContent = '-- USDC';
-    toast('WALLET DISCONNECTED', 'var(--orange)');
-  } else {
-    walletAddress = randAddr();
-    walletBalance = (Math.random()*900+100).toFixed(2)*1;
-    eurcBalance   = (Math.random()*400+50).toFixed(2)*1;
-    walletConnected = true;
-    const btn = document.getElementById('connect-btn');
-    btn.textContent = shortAddr(walletAddress);
-    btn.classList.add('connected');
-    document.getElementById('bal-display').textContent = fmtUSD(walletBalance);
-    document.getElementById('bal-addr').textContent = shortAddr(walletAddress)+' // ARC TESTNET';
-    const pct = Math.min(100,(walletBalance/1000*100)).toFixed(0);
-    document.getElementById('bal-fill').style.width = pct+'%';
-    document.getElementById('bal-pct').textContent = pct+'%';
-    const epct = Math.min(100,(eurcBalance/500*100)).toFixed(0);
-    document.getElementById('eurc-fill').style.width = epct+'%';
-    document.getElementById('eurc-pct').textContent = epct+'%';
-    document.getElementById('eurc-display').textContent = fmtUSD(eurcBalance);
-    document.getElementById('avail-bal').textContent = fmtUSD(walletBalance)+' USDC';
-    toast('⚡ WALLET CONNECTED: '+shortAddr(walletAddress));
-    seedTxHistory();
-    updateStats();
+const ARC_CHAIN = {
+  chainId:          '0x4CE672',
+  chainName:        'Arc Testnet',
+  nativeCurrency:   { name: 'USD Coin', symbol: 'USDC', decimals: 18 },
+  rpcUrls:          ['https://rpc.arc-testnet.com'],
+  blockExplorerUrls:['https://testnet.arcscan.app']
+};
+const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+const EURC_ADDRESS = '0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42';
+
+async function getTokenBalance(tokenAddr, walletAddr) {
+  try {
+    const data = '0x70a08231' + walletAddr.slice(2).padStart(64,'0');
+    const res  = await window.ethereum.request({
+      method:'eth_call', params:[{to:tokenAddr, data},'latest']
+    });
+    return Number(BigInt(res)) / 1e6;
+  } catch(e) { return 0; }
+}
+
+async function switchToArc() {
+  try {
+    await window.ethereum.request({
+      method:'wallet_switchEthereumChain',
+      params:[{chainId: ARC_CHAIN.chainId}]
+    });
+  } catch(err) {
+    if(err.code===4902) {
+      await window.ethereum.request({
+        method:'wallet_addEthereumChain', params:[ARC_CHAIN]
+      });
+    } else throw err;
+  }
+}
+
+function onWalletConnected(address, usdcBal, eurcBal) {
+  walletConnected = true;
+  walletAddress   = address;
+  walletBalance   = usdcBal;
+  eurcBalance     = eurcBal;
+  const btn = document.getElementById('connect-btn');
+  btn.textContent = shortAddr(address);
+  btn.classList.add('connected');
+  document.getElementById('bal-display').textContent  = fmtUSD(usdcBal);
+  document.getElementById('bal-addr').textContent     = shortAddr(address)+' // ARC TESTNET';
+  const pct = Math.min(100,(usdcBal/1000*100)).toFixed(0);
+  document.getElementById('bal-fill').style.width     = pct+'%';
+  document.getElementById('bal-pct').textContent      = pct+'%';
+  document.getElementById('eurc-display').textContent = fmtUSD(eurcBal);
+  const epct = Math.min(100,(eurcBal/500*100)).toFixed(0);
+  document.getElementById('eurc-fill').style.width    = epct+'%';
+  document.getElementById('eurc-pct').textContent     = epct+'%';
+  document.getElementById('avail-bal').textContent    = fmtUSD(usdcBal)+' USDC';
+  toast('WALLET CONNECTED: '+shortAddr(address));
+  loadFromStorage();
+  renderTxFeed();
+  updateStats();
+}
+
+function onWalletDisconnected() {
+  walletConnected = false; walletAddress = '';
+  document.getElementById('connect-btn').textContent = 'CONNECT WALLET';
+  document.getElementById('connect-btn').classList.remove('connected');
+  document.getElementById('bal-display').textContent  = '---.--';
+  document.getElementById('bal-addr').textContent     = 'CONNECT WALLET TO VIEW';
+  document.getElementById('bal-fill').style.width     = '0%';
+  document.getElementById('bal-pct').textContent      = '0%';
+  document.getElementById('eurc-fill').style.width    = '0%';
+  document.getElementById('eurc-pct').textContent     = '0%';
+  document.getElementById('eurc-display').textContent = '---.--';
+  document.getElementById('avail-bal').textContent    = '-- USDC';
+  toast('WALLET DISCONNECTED','var(--orange)');
+}
+
+async function toggleWallet() {
+  if(walletConnected) { onWalletDisconnected(); return; }
+
+  if(!window.ethereum) {
+    toast('ZAINSTALUJ METAMASK!','var(--red)');
+    setTimeout(()=>window.open('https://metamask.io/download/','_blank'),1200);
+    return;
+  }
+
+  const btn = document.getElementById('connect-btn');
+  btn.textContent = 'CONNECTING...';
+  btn.disabled = true;
+
+  try {
+    const accounts = await window.ethereum.request({method:'eth_requestAccounts'});
+    const address  = accounts[0];
+    try { await switchToArc(); } catch(e) {
+      toast('ZMIEŃ SIEĆ NA ARC TESTNET','var(--orange)');
+    }
+    const usdcBal = await getTokenBalance(USDC_ADDRESS, address);
+    const eurcBal = await getTokenBalance(EURC_ADDRESS, address);
+    onWalletConnected(address, usdcBal, eurcBal);
+
+    window.ethereum.on('accountsChanged', async (accs) => {
+      if(!accs.length){ onWalletDisconnected(); return; }
+      const u = await getTokenBalance(USDC_ADDRESS, accs[0]);
+      const e = await getTokenBalance(EURC_ADDRESS, accs[0]);
+      onWalletConnected(accs[0], u, e);
+    });
+    window.ethereum.on('chainChanged', ()=>window.location.reload());
+
+  } catch(err) {
+    if(err.code===4001) toast('ODRZUCONO POŁĄCZENIE','var(--red)');
+    else toast('BŁĄD: '+(err.message||'nieznany'),'var(--red)');
+  } finally {
+    btn.disabled = false;
+    if(!walletConnected) btn.textContent = 'CONNECT WALLET';
   }
 }
 
