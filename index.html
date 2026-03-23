@@ -878,6 +878,8 @@ function submitTx() {
   updateStats();
   renderLeaderboard();
   saveToStorage();
+  // 🔥 Zapisz do Firebase
+  if(window.fbSaveTx) window.fbSaveTx(tx);
   // reset form
   document.getElementById('send-to').value='';
   document.getElementById('send-amount').value='';
@@ -1056,6 +1058,8 @@ function addContact() {
   document.getElementById('new-contact-name').value='';
   document.getElementById('new-contact-addr').value='';
   renderContacts(); saveToStorage();
+  // 🔥 Zapisz kontakt do Firebase
+  if(window.fbSaveContact) window.fbSaveContact({name: document.getElementById("new-contact-name").value, addr: document.getElementById("new-contact-addr").value});
   toast('CONTACT SAVED: '+name);
 }
 function useContact(i) {
@@ -1092,6 +1096,90 @@ setInterval(()=>{
   document.getElementById('block-time').textContent = '~'+(1.5+Math.random()).toFixed(1)+'s';
 },3000);
 window.addEventListener('resize', drawChart);
+</script>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC4m3pisc1y_DYCvKmzcSjjmmucfxWEt-w",
+    authDomain: "fluxpay-db.firebaseapp.com",
+    projectId: "fluxpay-db",
+    storageBucket: "fluxpay-db.firebasestorage.app",
+    messagingSenderId: "766015785878",
+    appId: "1:766015785878:web:dc7633676322dc22852bb7"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  // ── SAVE TRANSACTION TO FIREBASE ──────────────────
+  window.fbSaveTx = async function(tx) {
+    try {
+      await addDoc(collection(db, "transactions"), {
+        type:      tx.type,
+        to:        tx.to,
+        from:      tx.from,
+        amount:    tx.amount,
+        note:      tx.note || '',
+        hash:      tx.hash,
+        status:    tx.status,
+        wallet:    tx.from,
+        createdAt: serverTimestamp()
+      });
+      console.log("✅ TX zapisana do Firebase");
+    } catch(e) {
+      console.warn("⚠️ Firebase TX error:", e.message);
+    }
+  };
+
+  // ── SAVE CONTACT TO FIREBASE ──────────────────────
+  window.fbSaveContact = async function(contact) {
+    try {
+      await addDoc(collection(db, "contacts"), {
+        name:      contact.name,
+        addr:      contact.addr,
+        createdAt: serverTimestamp()
+      });
+      console.log("✅ Kontakt zapisany do Firebase");
+    } catch(e) {
+      console.warn("⚠️ Firebase Contact error:", e.message);
+    }
+  };
+
+  // ── LOAD LEADERBOARD FROM FIREBASE ───────────────
+  window.fbLoadLeaderboard = async function() {
+    try {
+      const q = query(collection(db, "transactions"), orderBy("amount", "desc"), limit(50));
+      const snap = await getDocs(q);
+      const map = {};
+      snap.forEach(doc => {
+        const d = doc.data();
+        if(d.type !== 'out') return;
+        if(!map[d.wallet]) map[d.wallet] = { addr: d.wallet, vol: 0, txs: 0 };
+        map[d.wallet].vol += d.amount;
+        map[d.wallet].txs += 1;
+      });
+      const lb = Object.values(map).sort((a,b) => b.vol - a.vol).slice(0, 10);
+      if(lb.length > 0) {
+        window.lbData = lb.map(u => ({ ...u, name: u.addr.slice(2,8).toUpperCase() }));
+        window.renderLeaderboard();
+        console.log("✅ Leaderboard załadowany z Firebase:", lb.length, "graczy");
+      }
+    } catch(e) {
+      console.warn("⚠️ Firebase Leaderboard error:", e.message);
+    }
+  };
+
+  // Start — ładuj leaderboard z Firebase przy starcie
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      if(window.fbLoadLeaderboard) window.fbLoadLeaderboard();
+    }, 1000);
+  });
+
+  console.log("✅ Firebase połączony z projektem fluxpay-db!");
 </script>
 </body>
 </html>
